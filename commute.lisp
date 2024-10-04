@@ -83,11 +83,6 @@
 
 ; NSR:StopPlace:59651
 
-(defun make-query ()
-  "{\"query\":\"query { stopPlace(id: \\\"NSR:StopPlace:59651\\\") { name } }\"}")
-
-(format t "~A" (make-query))
-
 (defun send-query (query-json-str)
   (let* ((data query-json-str)
          (url "https://api.entur.io/journey-planner/v3/graphql"))
@@ -101,10 +96,6 @@
                            :accept "application/json"
                            :connection-timeout 2
                            :content data)))))
-
-(send-query (make-query))
-; Send query: {"query":"query { stopPlace(id: \"NSR:StopPlace:59651\") { name } }"}
-;  => ((:DATA (:STOP-PLACE (:NAME . "Skøyen stasjon"))))
 
 (send-query (make-gql-json skoyen))
 ; Send query: {"query":"query { stopPlace(id: \"NSR:StopPlace:59651\") { name } }"}
