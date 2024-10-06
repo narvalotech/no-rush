@@ -24,19 +24,22 @@
 ;;         } } } } }
 
 ;; TODO: make it so we don't have to type so many quotes
-(defparameter test
-  '(("stopPlace" (("id" . "\"NSR:StopPlace:59651\""))
-     (("name")
-      ("id")
-      ("estimatedCalls" ()
-       (("expectedDepartureTime")
-        ("actualDepartureTime")
-        ("destinationDisplay" ()
-         (("frontText")))
-        ("serviceJourney" ()
-         (("line" ()
-               (("publicCode")
-                ("transportMode")))))))))))
+(defun gql-departures (nsr-id &key (max 5))
+  (let ((quoted-id (format nil "\"~A\"" nsr-id)))
+    `(("stopPlace" (("id" . ,quoted-id))
+       (("name")
+        ("id")
+        ("estimatedCalls" (("numberOfDepartures" . ,max))
+         (("expectedDepartureTime")
+          ("actualDepartureTime")
+          ("destinationDisplay" ()
+           (("frontText")))
+          ("serviceJourney" ()
+           (("line" ()
+                    (("publicCode")
+                     ("transportMode"))))))))))))
+
+(defparameter test (gql-departures "NSR:StopPlace:59651"))
 
 (defun args->str (arglist)
   (if arglist
@@ -87,7 +90,21 @@
 (format t "~A" (make-gql-json test))
 ; {"query":"query { stopPlace(id: \"NSR:StopPlace:59651\") { name id estimatedCalls { expectedDepartureTime actualDepartureTime destinationDisplay { frontText } serviceJourney { line { publicCode transportMode } } } } }"} => NIL
 
-; NSR:StopPlace:59651
+(defparameter test2
+  '((:EXPECTED-DEPARTURE-TIME . "2024-10-06T23:33:00+02:00")
+    (:ACTUAL-DEPARTURE-TIME)
+    (:DESTINATION-DISPLAY (:FRONT-TEXT . "Ringen via Tøyen"))
+    (:SERVICE-JOURNEY
+     (:LINE (:PUBLIC-CODE . "5") (:TRANSPORT-MODE . "metro")))))
+
+(assoc :service-journey test2)
+ ; => (:SERVICE-JOURNEY (:LINE (:PUBLIC-CODE . "5") (:TRANSPORT-MODE . "metro")))
+(defun is-transport-mode (mode element)
+  (let ((el-mode (cdr (assoc :transport-mode (cdr (nth 1 (assoc :service-journey element)))))))
+    (equalp mode el-mode)))
+
+(is-transport-mode "metro" test2)
+ ; => T
 
 (defun send-query (query-json-str)
   (let* ((data query-json-str)
@@ -103,7 +120,7 @@
                            :connection-timeout 2
                            :content data)))))
 
-(send-query (make-gql-json test))
+(send-query (make-gql-json (gql-departures "NSR:StopPlace:58404" :max 50)))
 ; Send query: {"query":"query { stopPlace(id: \"NSR:StopPlace:59651\") { name id estimatedCalls { expectedDepartureTime actualDepartureTime destinationDisplay { frontText } serviceJourney { line { publicCode transportMode } } } } }"}
 ;  => ((:DATA
 ;   (:STOP-PLACE (:NAME . "Skøyen stasjon") (:ID . "NSR:StopPlace:59651")
@@ -130,3 +147,33 @@
 ;      (:ACTUAL-DEPARTURE-TIME) (:DESTINATION-DISPLAY (:FRONT-TEXT . "Dal"))
 ;      (:SERVICE-JOURNEY
 ;       (:LINE (:PUBLIC-CODE . "R13") (:TRANSPORT-MODE . "rail"))))))))
+
+(defun get-estimated-calls (response)
+  (let ((calls (nth 3 (nth 1 (car response)))))
+    (assert (eql :estimated-calls (car calls)))
+    (cdr calls)))
+
+(defun departures-by-type (transport-type nsr-id &key (max 5))
+  (let ((response (send-query (make-gql-json (gql-departures nsr-id :max max)))))
+    (remove-if-not
+     (lambda (el) (is-transport-mode transport-type el))
+     (get-estimated-calls response))))
+
+;; TODO: it's apparently possible to:
+;; - whitelist transport modes
+;; - whitelist line numbers
+;; - specify a max departure time
+;; try that out tomorrow..
+
+(departures-by-type "metro" "NSR:StopPlace:58404" :max 10)
+; Send query: {"query":"query { stopPlace(id: \"NSR:StopPlace:58404\") { name id estimatedCalls(numberOfDepartures: 10) { expectedDepartureTime actualDepartureTime destinationDisplay { frontText } serviceJourney { line { publicCode transportMode } } } } }"}
+;  => (((:EXPECTED-DEPARTURE-TIME . "2024-10-06T23:51:22+02:00")
+;   (:ACTUAL-DEPARTURE-TIME) (:DESTINATION-DISPLAY (:FRONT-TEXT . "Østerås"))
+;   (:SERVICE-JOURNEY (:LINE (:PUBLIC-CODE . "2") (:TRANSPORT-MODE . "metro"))))
+;  ((:EXPECTED-DEPARTURE-TIME . "2024-10-06T23:53:00+02:00")
+;   (:ACTUAL-DEPARTURE-TIME) (:DESTINATION-DISPLAY (:FRONT-TEXT . "Sognsvann"))
+;   (:SERVICE-JOURNEY (:LINE (:PUBLIC-CODE . "5") (:TRANSPORT-MODE . "metro"))))
+;  ((:EXPECTED-DEPARTURE-TIME . "2024-10-06T23:53:13+02:00")
+;   (:ACTUAL-DEPARTURE-TIME)
+;   (:DESTINATION-DISPLAY (:FRONT-TEXT . "Bergkrystallen"))
+;   (:SERVICE-JOURNEY (:LINE (:PUBLIC-CODE . "4") (:TRANSPORT-MODE . "metro")))))
