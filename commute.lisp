@@ -21,18 +21,22 @@
 ;;         line {
 ;;           publicCode
 ;;           transportMode
-;;         }
-;;       }
-;;     }
-;;   }
-;; }
+;;         } } } } }
 
-(defparameter test '(:object
-                     (:name "stopPlace" :arg (("id" . "\\\"NSR:StopPlace:59651\\\"")
-                                              ("other" . "\"someotherstring\"")))
-                     ;; list of "field" objects
-                     :fields ((:name "name" :arg (("p2" . "v2")))
-                              (:name "other" :arg ()))))
+;; TODO: make it so we don't have to type so many quotes
+(defparameter test
+  '(("stopPlace" (("id" . "\"NSR:StopPlace:59651\""))
+     (("name")
+      ("id")
+      ("estimatedCalls" ()
+       (("expectedDepartureTime")
+        ("actualDepartureTime")
+        ("destinationDisplay" ()
+         (("frontText")))
+        ("serviceJourney" ()
+         (("line" ()
+               (("publicCode")
+                ("transportMode")))))))))))
 
 (defun args->str (arglist)
   (if arglist
@@ -41,27 +45,35 @@
                         (format nil "~A: ~A" (car arg) (cdr arg))) arglist))
       ""))
 
-(args->str (getf (getf test :object) :arg))
-(args->str nil)
+(defun sexp->gql (sx stream)
+  (let* ((el (car sx))
+         (name (nth 0 el))
+         (params (nth 1 el))
+         (children (nth 2 el)))
 
-(defun fields->str (fields)
-  (mapcar (lambda (field) (format nil "~A~A" (getf field :name) (args->str (getf field :arg))))
-          fields))
+    (format stream " ~A" name)
 
-(fields->str (getf test :fields))
+    (when params
+      (format stream (args->str params)))
 
-(defun make-gql (params)
+    (when children
+      (format stream " {")
+      (sexp->gql children stream)
+      (format stream " }"))
+
+    (when (> (length sx) 1)
+      (sexp->gql (cdr sx) stream))))
+
+(defun make-gql (sx)
   "Make a GraphQL string from a query definition."
-  ;; Definiting schemas: ain't nobody got time fo dat
-  ;; assume only one object for now
-  (let ((object (getf (getf params :object) :name))
-        (args (getf (getf params :object) :arg))
-        (fields (getf params :fields)))
-    (format nil "query { ~A~A { ~{~A~^ ~} } }"
-            object (args->str args)
-            (fields->str fields))))
+  (format nil "~A"
+          (with-output-to-string (output)
+            (format output "query {")
+            (sexp->gql sx output)
+            (format output " }"))))
 
-(make-gql test)
+(format t "~A" (make-gql test))
+; query { stopPlace(id: "NSR:StopPlace:59651") { name id estimatedCalls { expectedDepartureTime actualDepartureTime destinationDisplay { frontText } serviceJourney { line { publicCode transportMode } } } } } => NIL
 
 (defun package-gql (gql-str)
   "Package a GraphQL query string into a json object ready for sending."
@@ -70,16 +82,10 @@
 (defun make-gql-json (params)
   (package-gql (make-gql params)))
 
-(make-gql test)
-
-(defparameter skoyen
-  '(:object (:name "stopPlace" :arg (("id" . "\"NSR:StopPlace:59651\"")))
-    :fields ((:name "name" :arg nil))))
-
-(format t "~A" (make-gql skoyen))
-; query { stopPlace(id: "NSR:StopPlace:59651") { name } } => NIL
-(format t "~A" (make-gql-json skoyen))
-; {"query":"query { stopPlace(id: \"NSR:StopPlace:59651\") { name } }"} => NIL
+(format t "~A" (make-gql test))
+; query { stopPlace(id: "NSR:StopPlace:59651") { name id estimatedCalls { expectedDepartureTime actualDepartureTime destinationDisplay { frontText } serviceJourney { line { publicCode transportMode } } } } } => NIL
+(format t "~A" (make-gql-json test))
+; {"query":"query { stopPlace(id: \"NSR:StopPlace:59651\") { name id estimatedCalls { expectedDepartureTime actualDepartureTime destinationDisplay { frontText } serviceJourney { line { publicCode transportMode } } } } }"} => NIL
 
 ; NSR:StopPlace:59651
 
@@ -97,6 +103,30 @@
                            :connection-timeout 2
                            :content data)))))
 
-(send-query (make-gql-json skoyen))
-; Send query: {"query":"query { stopPlace(id: \"NSR:StopPlace:59651\") { name } }"}
-;  => ((:DATA (:STOP-PLACE (:NAME . "Skøyen stasjon"))))
+(send-query (make-gql-json test))
+; Send query: {"query":"query { stopPlace(id: \"NSR:StopPlace:59651\") { name id estimatedCalls { expectedDepartureTime actualDepartureTime destinationDisplay { frontText } serviceJourney { line { publicCode transportMode } } } } }"}
+;  => ((:DATA
+;   (:STOP-PLACE (:NAME . "Skøyen stasjon") (:ID . "NSR:StopPlace:59651")
+;    (:ESTIMATED-CALLS
+;     ((:EXPECTED-DEPARTURE-TIME . "2024-10-06T23:01:04+02:00")
+;      (:ACTUAL-DEPARTURE-TIME) (:DESTINATION-DISPLAY (:FRONT-TEXT . "Skøyen"))
+;      (:SERVICE-JOURNEY
+;       (:LINE (:PUBLIC-CODE . "130") (:TRANSPORT-MODE . "bus"))))
+;     ((:EXPECTED-DEPARTURE-TIME . "2024-10-06T23:02:10+02:00")
+;      (:ACTUAL-DEPARTURE-TIME)
+;      (:DESTINATION-DISPLAY (:FRONT-TEXT . "Lillestrøm"))
+;      (:SERVICE-JOURNEY
+;       (:LINE (:PUBLIC-CODE . "L1") (:TRANSPORT-MODE . "rail"))))
+;     ((:EXPECTED-DEPARTURE-TIME . "2024-10-06T23:03:00+02:00")
+;      (:ACTUAL-DEPARTURE-TIME) (:DESTINATION-DISPLAY (:FRONT-TEXT . "Sandvika"))
+;      (:SERVICE-JOURNEY
+;       (:LINE (:PUBLIC-CODE . "130") (:TRANSPORT-MODE . "bus"))))
+;     ((:EXPECTED-DEPARTURE-TIME . "2024-10-06T23:04:00+02:00")
+;      (:ACTUAL-DEPARTURE-TIME)
+;      (:DESTINATION-DISPLAY (:FRONT-TEXT . "Flytogbuss fra Strømsø torg"))
+;      (:SERVICE-JOURNEY
+;       (:LINE (:PUBLIC-CODE . "FLY1") (:TRANSPORT-MODE . "rail"))))
+;     ((:EXPECTED-DEPARTURE-TIME . "2024-10-06T23:04:00+02:00")
+;      (:ACTUAL-DEPARTURE-TIME) (:DESTINATION-DISPLAY (:FRONT-TEXT . "Dal"))
+;      (:SERVICE-JOURNEY
+;       (:LINE (:PUBLIC-CODE . "R13") (:TRANSPORT-MODE . "rail"))))))))
