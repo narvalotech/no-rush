@@ -24,20 +24,28 @@
 ;;         } } } } }
 
 ;; TODO: make it so we don't have to type so many quotes
-(defun gql-departures (nsr-id &key (max 5))
+(defun gql-departures (nsr-id &key (max 5) (seconds (* 2 60 60)))
   (let ((quoted-id (format nil "\"~A\"" nsr-id)))
     `(("stopPlace" (("id" . ,quoted-id))
        (("name")
         ("id")
-        ("estimatedCalls" (("numberOfDepartures" . ,max))
-         (("expectedDepartureTime")
-          ("actualDepartureTime")
-          ("destinationDisplay" ()
-           (("frontText")))
-          ("serviceJourney" ()
-           (("line" ()
-                    (("publicCode")
-                     ("transportMode"))))))))))))
+        ("estimatedCalls" (("numberOfDepartures" . ,max)
+                           ("timeRange" . ,seconds))
+                          (("expectedDepartureTime")
+                           ;; ("actualDepartureTime") ; always empty it seems
+                           ("destinationDisplay" ()
+                                                 (("frontText")))
+                           ("serviceJourney" ()
+                                             (("line" ()
+                                                      (("publicCode")
+                                                       ("transportMode")))))))
+        ;; Seems we have to fetch those per-quay, not per-station
+        ;; ("situations" ()
+        ;;               (("id")
+        ;;                ("description" ()
+        ;;                               (("value")
+        ;;                                ("language")))))
+        )))))
 
 (defparameter test (gql-departures "NSR:StopPlace:59651"))
 
@@ -148,32 +156,33 @@
 ;      (:SERVICE-JOURNEY
 ;       (:LINE (:PUBLIC-CODE . "R13") (:TRANSPORT-MODE . "rail"))))))))
 
-(defun get-estimated-calls (response)
+(defun extract-estimated-calls (response)
   (let ((calls (nth 3 (nth 1 (car response)))))
     (assert (eql :estimated-calls (car calls)))
     (cdr calls)))
 
-(defun departures-by-type (transport-type nsr-id &key (max 5))
-  (let ((response (send-query (make-gql-json (gql-departures nsr-id :max max)))))
-    (remove-if-not
-     (lambda (el) (is-transport-mode transport-type el))
-     (get-estimated-calls response))))
+(defun get-departures (nsr-id &key (max 100) (seconds (* 2 60 60)))
+  "Convenience wrapper around GQL-DEPARTURES and SEND-QUERY"
+  (extract-estimated-calls
+   (send-query
+    (make-gql-json
+     (gql-departures nsr-id :max max :seconds seconds)))))
 
-;; TODO: it's apparently possible to:
+;; It's apparently possible to:
 ;; - whitelist transport modes
 ;; - whitelist line numbers
 ;; - specify a max departure time
-;; try that out tomorrow..
+;; from the GraphQL query.
+;; I think it's better to fetch all and filter locally.
 
-(departures-by-type "metro" "NSR:StopPlace:58404" :max 10)
-; Send query: {"query":"query { stopPlace(id: \"NSR:StopPlace:58404\") { name id estimatedCalls(numberOfDepartures: 10) { expectedDepartureTime actualDepartureTime destinationDisplay { frontText } serviceJourney { line { publicCode transportMode } } } } }"}
-;  => (((:EXPECTED-DEPARTURE-TIME . "2024-10-06T23:51:22+02:00")
-;   (:ACTUAL-DEPARTURE-TIME) (:DESTINATION-DISPLAY (:FRONT-TEXT . "Østerås"))
-;   (:SERVICE-JOURNEY (:LINE (:PUBLIC-CODE . "2") (:TRANSPORT-MODE . "metro"))))
-;  ((:EXPECTED-DEPARTURE-TIME . "2024-10-06T23:53:00+02:00")
-;   (:ACTUAL-DEPARTURE-TIME) (:DESTINATION-DISPLAY (:FRONT-TEXT . "Sognsvann"))
-;   (:SERVICE-JOURNEY (:LINE (:PUBLIC-CODE . "5") (:TRANSPORT-MODE . "metro"))))
-;  ((:EXPECTED-DEPARTURE-TIME . "2024-10-06T23:53:13+02:00")
-;   (:ACTUAL-DEPARTURE-TIME)
-;   (:DESTINATION-DISPLAY (:FRONT-TEXT . "Bergkrystallen"))
-;   (:SERVICE-JOURNEY (:LINE (:PUBLIC-CODE . "4") (:TRANSPORT-MODE . "metro")))))
+(defun departures-by-type (transport-type nsr-id)
+  (let ((departures (get-departures nsr-id)))
+    (remove-if-not
+     (lambda (el) (is-transport-mode transport-type el))
+     departures)))
+
+;; blommenholm
+(departures-by-type "rail" "NSR:StopPlace:58843")
+
+;; nationaltheatret
+(departures-by-type "metro" "NSR:StopPlace:58404")
