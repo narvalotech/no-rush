@@ -107,11 +107,22 @@
 
 (assoc :service-journey test2)
  ; => (:SERVICE-JOURNEY (:LINE (:PUBLIC-CODE . "5") (:TRANSPORT-MODE . "metro")))
-(defun is-transport-mode (mode element)
-  (let ((el-mode (cdr (assoc :transport-mode (cdr (nth 1 (assoc :service-journey element)))))))
-    (equalp mode el-mode)))
 
-(is-transport-mode "metro" test2)
+(defun is-transport-mode (modes element)
+  "Tests if the element's :TRANSPORT-MODE matches one of the MODES"
+  (let ((result nil)
+        (el-mode
+          (cdr
+           (assoc :transport-mode
+                  (cdr (nth 1 (assoc :service-journey element)))))))
+    (dolist (test-mode modes result)
+      (setf result (or result (equalp test-mode el-mode))))))
+
+(is-transport-mode '("metro") test2)
+ ; => T
+(is-transport-mode '("ferry") test2)
+ ; => NIL
+(is-transport-mode '("rail" "metro") test2)
  ; => T
 
 (defun send-query (query-json-str)
@@ -175,14 +186,18 @@
 ;; from the GraphQL query.
 ;; I think it's better to fetch all and filter locally.
 
-(defun departures-by-type (transport-type nsr-id)
-  (let ((departures (get-departures nsr-id)))
-    (remove-if-not
-     (lambda (el) (is-transport-mode transport-type el))
-     departures)))
+(defun filter-by-type (departures transport-types)
+  ;; don't filter if filter list is empty :)
+  (if (not transport-types) departures
+      (remove-if-not
+       (lambda (el) (is-transport-mode transport-types el))
+       departures)))
 
 ;; blommenholm
-(departures-by-type "rail" "NSR:StopPlace:58843")
+(filter-by-type '("rail")
+                (get-departures "NSR:StopPlace:58843"))
 
 ;; nationaltheatret
-(departures-by-type "metro" "NSR:StopPlace:58404")
+(filter-by-type '("metro")
+                (get-departures "NSR:StopPlace:58404"))
+
