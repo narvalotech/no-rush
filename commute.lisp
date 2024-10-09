@@ -169,13 +169,17 @@
 ;; from the GraphQL query.
 ;; I think it's better to fetch all and filter locally.
 
+;; TODO: should we go full CLOS and parse immediately to an object?
+;; That would mean we lose on future ulisp / picolisp compat
+(defun extract-type (departure)
+  (cdr
+   (assoc :transport-mode
+          (cdr (nth 1 (assoc :service-journey departure))))))
+
 (defun is-transport-mode (modes element)
   "Tests if the element's :TRANSPORT-MODE matches one of the MODES"
   (let ((result nil)
-        (el-mode
-          (cdr
-           (assoc :transport-mode
-                  (cdr (nth 1 (assoc :service-journey element)))))))
+        (el-mode (extract-type element)))
     (dolist (test-mode modes result)
       (setf result (or result (equalp test-mode el-mode))))))
 
@@ -193,13 +197,15 @@
        (lambda (el) (is-transport-mode transport-types el))
        departures)))
 
+(defun extract-destination (departure)
+  (cdr
+   (assoc :front-text
+          (cdr (assoc :destination-display departure)))))
+
 (defun is-destination (destinations element)
   "Test if the element's destination text matches one of DESTINATIONS."
   (let ((result nil)
-        (el-dest
-          (cdr
-           (assoc :front-text
-                  (cdr (assoc :destination-display element))))))
+        (el-dest (extract-destination element)))
 
     (dolist (test-dest destinations result)
       (setf result (or result (equalp test-dest el-dest))))))
@@ -217,13 +223,15 @@
        (lambda (el) (is-destination destinations el))
        departures)))
 
+(defun extract-line (departure)
+  (cdr
+   (assoc :public-code
+          (cdr (nth 1 (assoc :service-journey departure))))))
+
 (defun is-line (lines element)
   "Tests if the element's :PUBLIC-CODE matches one of the LINES"
   (let ((result nil)
-        (el-line
-          (cdr
-           (assoc :public-code
-                  (cdr (nth 1 (assoc :service-journey element)))))))
+        (el-line (extract-line element)))
     (dolist (test-line lines result)
       (setf result (or result (equalp test-line el-line))))))
 
