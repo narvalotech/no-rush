@@ -108,23 +108,6 @@
 (assoc :service-journey test2)
  ; => (:SERVICE-JOURNEY (:LINE (:PUBLIC-CODE . "5") (:TRANSPORT-MODE . "metro")))
 
-(defun is-transport-mode (modes element)
-  "Tests if the element's :TRANSPORT-MODE matches one of the MODES"
-  (let ((result nil)
-        (el-mode
-          (cdr
-           (assoc :transport-mode
-                  (cdr (nth 1 (assoc :service-journey element)))))))
-    (dolist (test-mode modes result)
-      (setf result (or result (equalp test-mode el-mode))))))
-
-(is-transport-mode '("metro") test2)
- ; => T
-(is-transport-mode '("ferry") test2)
- ; => NIL
-(is-transport-mode '("rail" "metro") test2)
- ; => T
-
 (defun send-query (query-json-str)
   (let* ((data query-json-str)
          (url "https://api.entur.io/journey-planner/v3/graphql"))
@@ -185,6 +168,23 @@
 ;; - specify a max departure time
 ;; from the GraphQL query.
 ;; I think it's better to fetch all and filter locally.
+
+(defun is-transport-mode (modes element)
+  "Tests if the element's :TRANSPORT-MODE matches one of the MODES"
+  (let ((result nil)
+        (el-mode
+          (cdr
+           (assoc :transport-mode
+                  (cdr (nth 1 (assoc :service-journey element)))))))
+    (dolist (test-mode modes result)
+      (setf result (or result (equalp test-mode el-mode))))))
+
+(is-transport-mode '("metro") test2)
+ ; => T
+(is-transport-mode '("ferry") test2)
+ ; => NIL
+(is-transport-mode '("rail" "metro") test2)
+ ; => T
 
 (defun filter-by-type (departures transport-types)
   ;; don't filter if filter list is empty :)
