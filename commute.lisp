@@ -267,7 +267,7 @@
  ; => "08:29"
 
 (defun format-departure (departure)
-  (format nil "~A: [~A] line ~A to ~A"
+  (format nil "~A [~A] line ~A to ~A"
           (timestamp->human-readable
            (extract-timestamp departure))
           (extract-type departure)
@@ -275,7 +275,7 @@
           (extract-destination departure)))
 
 (format-departure *test-vestli*)
- ; => "08:29: [metro] line 5 to Vestli"
+ ; => "08:29 [metro] line 5 to Vestli"
 
 ;; blommenholm
 (filter-by-type '("rail")
