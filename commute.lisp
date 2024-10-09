@@ -191,7 +191,7 @@
 (is-transport-mode '("rail" "metro") test2)
  ; => T
 
-(defun filter-by-type (departures transport-types)
+(defun filter-by-type (transport-types departures)
   ;; don't filter if filter list is empty :)
   (if (not transport-types) departures
       (remove-if-not
@@ -218,7 +218,7 @@
 (is-destination '("Vestli") *test-vestli*)
  ; => T
 
-(defun filter-by-destination (departures destinations)
+(defun filter-by-destination (destinations departures)
   (if (not destinations) departures
       (remove-if-not
        (lambda (el) (is-destination destinations el))
@@ -243,7 +243,7 @@
 (is-line '("1" "34" "5") *test-vestli*)
  ; => T
 
-(defun filter-by-line (departures lines)
+(defun filter-by-line (lines departures)
   (if (not lines) departures
       (remove-if-not
        (lambda (el) (is-line lines el))
