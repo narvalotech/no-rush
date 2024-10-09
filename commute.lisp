@@ -193,6 +193,30 @@
        (lambda (el) (is-transport-mode transport-types el))
        departures)))
 
+(defun is-destination (destinations element)
+  "Test if the element's destination text matches one of DESTINATIONS."
+  (let ((result nil)
+        (el-dest
+          (cdr
+           (assoc :front-text
+                  (cdr (assoc :destination-display element))))))
+
+    (dolist (test-dest destinations result)
+      (setf result (or result (equalp test-dest el-dest))))))
+
+(defparameter *test-vestli* '((:EXPECTED-DEPARTURE-TIME . "2024-10-07T08:29:00+02:00")
+                              (:ACTUAL-DEPARTURE-TIME) (:DESTINATION-DISPLAY (:FRONT-TEXT . "Vestli"))
+                              (:SERVICE-JOURNEY (:LINE (:PUBLIC-CODE . "5") (:TRANSPORT-MODE . "metro")))))
+
+(is-destination '("Vestli") *test-vestli*)
+ ; => T
+
+(defun filter-by-destination (departures destinations)
+  (if (not destinations) departures
+      (remove-if-not
+       (lambda (el) (is-destination destinations el))
+       departures)))
+
 ;; blommenholm
 (filter-by-type '("rail")
                 (get-departures "NSR:StopPlace:58843"))
