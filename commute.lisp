@@ -1,5 +1,6 @@
 (ql:quickload "cl-json")
 (ql:quickload "drakma")
+(ql:quickload "local-time")
 
 ;; https://api.entur.io/graphql-explorer/journey-planner-v3?query=%0A%23+Welcome+to+GraphiQL%0A%23%23%23%23%23%23%23%23%23%23%23%23%23%23%23%23%23%23%0A%23+GraphiQL+is+an+in-browser+IDE+for+writing%2C+validating%2C+and%0A%23+testing+GraphQL+queries.%0A%23%0A%23+Type+queries+into+this+side+of+the+screen%2C+and+you+will%0A%23+see+intelligent+typeaheads+aware+of+the+current+GraphQL+type+schema+and%0A%23+live+syntax+and+validation+errors+highlighted+within+the+text.%0A%23%0A%23+To+bring+up+the+auto-complete+at+any+point%2C+just+press+Ctrl-Space.%0A%23%0A%23+Press+the+run+button+above%2C+or+Cmd-Enter+to+execute+the+query%2C+and+the+result%0A%23+will+appear+in+the+pane+to+the+right.%0A%23%0A%23%0A%23%23%23%23%23%23%23%23%23%23%23%23%23%23%23%23%23%23+Example+query%0Aquery+%7B%0A++stopPlace%28%0A++++id%3A+%22NSR%3AStopPlace%3A58404%22%0A++%29+%7B%0A++++name%0A++++id%0A++++estimatedCalls+%7B%0A++++++expectedDepartureTime%0A++++++actualDepartureTime%0A++++++destinationDisplay+%7B%0A++++++++frontText%0A++++++%7D%0A++++++serviceJourney+%7B%0A++++++++line+%7B%0A++++++++++publicCode%0A++++++++++transportMode%0A++++++++%7D%0A++++++%7D%0A++++%7D%0A++%7D%0A%7D%0A&variables=%7B%0A++%22id%22%3A+%22NSR%3AStopPlace%3A58404%22%0A%7D
 ;; https://developer.entur.org/pages-journeyplanner-journeyplanner
@@ -247,6 +248,34 @@
       (remove-if-not
        (lambda (el) (is-line lines el))
        departures)))
+
+(defun extract-timestamp (departure)
+  (cdr (assoc :expected-departure-time departure)))
+
+(extract-timestamp *test-vestli*)
+ ; => "2024-10-07T08:29:00+02:00"
+
+(defun timestamp->human-readable (timestamp-str)
+  "Converts an RFC3339 timestamp to a human-friendly format."
+  (let ((time-format '((:hour 2) ":" (:min 2)))
+        (time
+          (local-time:parse-rfc3339-timestring
+           timestamp-str)))
+    (local-time:format-timestring nil time :format time-format)))
+
+(timestamp->human-readable (extract-timestamp *test-vestli*))
+ ; => "08:29"
+
+(defun format-departure (departure)
+  (format nil "~A: [~A] line ~A to ~A"
+          (timestamp->human-readable
+           (extract-timestamp departure))
+          (extract-type departure)
+          (extract-line departure)
+          (extract-destination departure)))
+
+(format-departure *test-vestli*)
+ ; => "08:29: [metro] line 5 to Vestli"
 
 ;; blommenholm
 (filter-by-type '("rail")
