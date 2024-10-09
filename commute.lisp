@@ -217,6 +217,29 @@
        (lambda (el) (is-destination destinations el))
        departures)))
 
+(defun is-line (lines element)
+  "Tests if the element's :PUBLIC-CODE matches one of the LINES"
+  (let ((result nil)
+        (el-line
+          (cdr
+           (assoc :public-code
+                  (cdr (nth 1 (assoc :service-journey element)))))))
+    (dolist (test-line lines result)
+      (setf result (or result (equalp test-line el-line))))))
+
+(is-line '("4") *test-vestli*)
+ ; => NIL
+(is-line '("5") *test-vestli*)
+ ; => T
+(is-line '("1" "34" "5") *test-vestli*)
+ ; => T
+
+(defun filter-by-line (departures lines)
+  (if (not lines) departures
+      (remove-if-not
+       (lambda (el) (is-line lines el))
+       departures)))
+
 ;; blommenholm
 (filter-by-type '("rail")
                 (get-departures "NSR:StopPlace:58843"))
