@@ -278,10 +278,35 @@
  ; => "08:29 [metro] line 5 to Vestli"
 
 ;; blommenholm
-(filter-by-type '("rail")
-                (get-departures "NSR:StopPlace:58843"))
+(filter-by-type '("rail") (get-departures "NSR:StopPlace:58843"))
 
 ;; nationaltheatret
-(filter-by-type '("metro")
-                (get-departures "NSR:StopPlace:58404"))
+(defparameter *test-national* (get-departures "NSR:StopPlace:58404"))
 
+(filter-by-type '("metro") *test-national*)
+(filter-by-line '("5") *test-national*)
+
+;; TODO: refactor the FILTER-xx fns. They are very similar.
+(defun filter-departures (departures
+                          &key types destinations lines)
+  (filter-by-line
+   lines (filter-by-destination
+          destinations (filter-by-type types departures))))
+
+(defun print-departures (departures &optional (stream t))
+  (mapcar (lambda (d)
+            (format stream "~A~%" (format-departure d)))
+          departures))
+
+(print-departures
+ (filter-departures
+  *test-national*
+  :types '("rail" "metro")
+  :destinations '("vestli" "asker" "spikkestad")
+  :lines '("5" "L1")))
+; 22:29 [rail] line L1 to Asker
+; 22:29 [metro] line 5 to Vestli
+; 22:43 [rail] line L1 to Spikkestad
+; 22:45 [metro] line 5 to Vestli
+; 22:59 [rail] line L1 to Asker
+;  => (NIL NIL NIL NIL NIL)
