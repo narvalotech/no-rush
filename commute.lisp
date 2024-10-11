@@ -310,3 +310,55 @@
 ; 22:45 [metro] line 5 to Vestli
 ; 22:59 [rail] line L1 to Asker
 ;  => (NIL NIL NIL NIL NIL)
+
+;; Geocoder API example
+;; https://api.entur.io/geocoder/v1/autocomplete?text=skoyen%20stasjon&lang=en
+
+(defun send-geocoder-query (name)
+  "Send a Entur geocoder API to retrieve stops matching NAME"
+  (let* ((url "https://api.entur.io/geocoder/v1/autocomplete"))
+    (format t "Send geocoder query: ~A~%" name)
+
+    (json:decode-json-from-string
+     (octets-to-string
+      (drakma:http-request url
+                           :method :get
+                           :parameters (list (cons "text" name)
+                                             (cons "lang" "en"))
+                           :connection-timeout 2)))))
+
+(defparameter *test-g-oslo-s* (send-geocoder-query "oslo s"))
+(defparameter *test-g-skoyen* (send-geocoder-query "skoyen stasjon"))
+(defparameter *test-g-national* (send-geocoder-query "nationaltheatret stasjon"))
+
+(defun g-get-props (query-response)
+  "Extracts stop properties from a geocoder API response. Always picks the first entry."
+  (cdr (assoc :properties (nth 1 (assoc :features query-response)))))
+
+(defun g-props->plist (prop-alist)
+  "Extracts geocoder properties into a nice alist."
+  (flet ((get-val (key) (cdr (assoc key prop-alist))))
+    (let ((id (get-val :id))
+          (name (get-val :name))
+          (category (get-val :category)))
+      (list
+       :id id
+       :name name
+       :types category))))
+
+(g-props->plist (g-get-props *test-g-skoyen*))
+ ; => (:ID "NSR:StopPlace:59651" :NAME "Skøyen stasjon" :TYPES
+ ; ("railStation" "onstreetBus" "onstreetBus" "onstreetBus"))
+
+;; This would be much nicer with a "stopPlace" object
+(defun find-stop (text)
+  "Query API and return the first result's stop-place ID"
+  (getf (g-props->plist (g-get-props (send-geocoder-query text))) :id))
+
+(find-stop "skoyen")
+; Send geocoder query: skoyen
+;  => "NSR:StopPlace:58223"
+
+(find-stop "skoyen stasjon")
+; Send geocoder query: skoyen stasjon
+;  => "NSR:StopPlace:59651"
