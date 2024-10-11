@@ -359,6 +359,30 @@
 ; Send geocoder query: skoyen
 ;  => "NSR:StopPlace:58223"
 
-(find-stop "skoyen stasjon")
+(time (find-stop "skoyen stasjon"))
 ; Send geocoder query: skoyen stasjon
 ;  => "NSR:StopPlace:59651"
+
+;; .6s 237kB alloc
+(time (find-stop "nationaltheatret"))
+; Send geocoder query: nationaltheatret
+;  => "NSR:StopPlace:58404"
+
+;; .6s 1.5MB alloc
+(time (get-departures "NSR:StopPlace:58404"))
+
+;; ~1s for two API calls. Not that bad.
+;; There's almost 2MB of allocations when API calls are fired. That's concerning.
+(time
+ (print-departures
+  (filter-departures
+   (get-departures (find-stop "nationaltheatret"))
+   :types '("rail" "metro")
+   :destinations '("vestli" "asker" "spikkestad")
+   :lines '("5" "L1"))))
+; Send geocoder query: nationaltheatret
+; Send query: {"query":"query { stopPlace(id: \"NSR:StopPlace:58404\") { name id estimatedCalls(numberOfDepartures: 100, timeRange: 7200) { expectedDepartureTime destinationDisplay { frontText } serviceJourney { line { publicCode transportMode } } } } }"}
+; 09:29 [rail] L1 Asker
+; 09:29 [metro] 5 Vestli
+; 09:43 [rail] L1 Spikkestad
+;  => (NIL NIL NIL)
