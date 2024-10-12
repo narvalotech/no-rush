@@ -391,36 +391,38 @@
 (ql:quickload :cl-utilities)
 (ql:quickload :quri)
 
+(defun parse-keyword (string)
+  (intern (string-upcase string) :keyword))
+
 (defun decode-url-params (url)
   "Decode URL-encoded (and escaped) parameters to a param-list"
-  (mapcar (lambda (p)
-            (list (car p)
-                  (cl-utilities:split-sequence
-                   #\Comma
-                   (remove-if (lambda (c) (char-equal #\" c)) (cdr p)))))
-          (quri:url-decode-params url)))
+  (reduce #'append
+          (mapcar (lambda (p)
+                    (list (parse-keyword (car p))
+                          (cl-utilities:split-sequence
+                           #\Comma
+                           (remove-if (lambda (c) (char-equal #\" c)) (cdr p)))))
+                  (quri:url-decode-params url))))
 
 (decode-url-params "station-name=nationaltheatret&types=%22rail,metro%22&destinations=%22oslo%20s,vestli,sk%C3%B8yen%22")
- ; => (("station-name" ("nationaltheatret")) ("types" ("rail" "metro"))
- ; ("destinations" ("oslo s" "vestli" "skøyen")))
+ ; => (:STATION-NAME ("nationaltheatret") :TYPES ("rail" "metro") :DESTINATIONS
+ ; ("oslo s" "vestli" "skøyen"))
 
-(defun get-station (name types destinations lines)
-  (format nil "Got station: ~A types [~A] dests [~A] lines [~A]" name types destinations lines))
+(defun get-station (&key station-name types destinations lines)
+  (format nil "Got station: ~A types [~A] dests [~A] lines [~A]" station-name types destinations lines))
+
+(defun handle-departures (env)
+  (list
+   (apply #'get-station (decode-url-params (getf env :query-string)))))
 
 (defun response (env)
-  ;; (format t "env: ~A~%" env)
   (format t "query-string: ~A~%" (getf env :query-string))
   ;; (break)
 
-  ;; Response:
-  ;; [status code] [headers (plist)] [body (strings / vector / pathname)]
-
-  (list 200 '(:content-type "text/html") (list "stuff")))
+  (if (and (eql :get (getf env :request-method))
+           (equalp "/departures" (getf env :path-info)))
+      (list 200 '(:content-type "text/plain") (handle-departures env))
+      (list 400 '() '("doesn't seem like anything to me.. (err 400)"))))
 
 (defvar *handler* (clack:clackup 'response :address "0.0.0.0" :port 9003))
 (clack:stop *handler*)
-
-(defparameter t1 *)
-(getf t1 :query-string)
-(getf t1 :request-method)
-(equalp "/departures" (getf t1 :path-info))
