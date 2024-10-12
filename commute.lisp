@@ -387,7 +387,6 @@
 ; 09:43 [rail] L1 Spikkestad
 ;  => (NIL NIL NIL)
 
-(ql:quickload :snooze)
 (ql:quickload :clack)
 (ql:quickload :cl-utilities)
 (ql:quickload :quri)
@@ -407,18 +406,6 @@
 
 (defun get-station (name types destinations lines)
   (format nil "Got station: ~A types [~A] dests [~A] lines [~A]" name types destinations lines))
-
-(snooze:defroute departures (:get :text/* &key station-name types destinations lines)
-  (or (get-station station-name types destinations lines)
-      (snooze:http-condition 404 "Sorry m8")))
-
-;; Let's use clack as a server backend
-(defvar *handler*
-  (clack:clackup (snooze:make-clack-app) :port 9003))
-
-(clack:stop *handler*)
-
-;; try again
 
 (defun response (env)
   ;; (format t "env: ~A~%" env)
