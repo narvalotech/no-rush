@@ -386,3 +386,54 @@
 ; 09:29 [metro] 5 Vestli
 ; 09:43 [rail] L1 Spikkestad
 ;  => (NIL NIL NIL)
+
+(ql:quickload :snooze)
+(ql:quickload :clack)
+(ql:quickload :cl-utilities)
+(ql:quickload :quri)
+
+(defun decode-url-params (url)
+  "Decode URL-encoded (and escaped) parameters to a param-list"
+  (mapcar (lambda (p)
+            (list (car p)
+                  (cl-utilities:split-sequence
+                   #\Comma
+                   (remove-if (lambda (c) (char-equal #\" c)) (cdr p)))))
+          (quri:url-decode-params url)))
+
+(decode-url-params "station-name=nationaltheatret&types=%22rail,metro%22&destinations=%22oslo%20s,vestli,sk%C3%B8yen%22")
+ ; => (("station-name" ("nationaltheatret")) ("types" ("rail" "metro"))
+ ; ("destinations" ("oslo s" "vestli" "skøyen")))
+
+(defun get-station (name types destinations lines)
+  (format nil "Got station: ~A types [~A] dests [~A] lines [~A]" name types destinations lines))
+
+(snooze:defroute departures (:get :text/* &key station-name types destinations lines)
+  (or (get-station station-name types destinations lines)
+      (snooze:http-condition 404 "Sorry m8")))
+
+;; Let's use clack as a server backend
+(defvar *handler*
+  (clack:clackup (snooze:make-clack-app) :port 9003))
+
+(clack:stop *handler*)
+
+;; try again
+
+(defun response (env)
+  ;; (format t "env: ~A~%" env)
+  (format t "query-string: ~A~%" (getf env :query-string))
+  ;; (break)
+
+  ;; Response:
+  ;; [status code] [headers (plist)] [body (strings / vector / pathname)]
+
+  (list 200 '(:content-type "text/html") (list "stuff")))
+
+(defvar *handler* (clack:clackup 'response :address "0.0.0.0" :port 9003))
+(clack:stop *handler*)
+
+(defparameter t1 *)
+(getf t1 :query-string)
+(getf t1 :request-method)
+(equalp "/departures" (getf t1 :path-info))
