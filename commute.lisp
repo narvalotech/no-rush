@@ -433,4 +433,4 @@
       (list 400 '() '("doesn't seem like anything to me.. (err 400)"))))
 
 (defvar *handler* (clack:clackup 'response :address "0.0.0.0" :port 9003))
-(clack:stop *handler*)
+;; (clack:stop *handler*)
