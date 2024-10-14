@@ -293,12 +293,13 @@
    lines (filter-by-destination
           destinations (filter-by-type types departures))))
 
-(defun print-departures (departures &optional (stream t))
-  (mapcar (lambda (d)
-            (format stream "~A~%" (format-departure d)))
-          departures))
+(defun print-departures (stream departures)
+  (with-output-to-string (s)
+    (mapcar (lambda (d)
+              (format (if stream stream s) "~A~%" (format-departure d)))
+            departures)))
 
-(print-departures
+(print-departures t
  (filter-departures
   *test-national*
   :types '("rail" "metro")
@@ -374,7 +375,7 @@
 ;; ~1s for two API calls. Not that bad.
 ;; There's almost 2MB of allocations when API calls are fired. That's concerning.
 (time
- (print-departures
+ (print-departures t
   (filter-departures
    (get-departures (find-stop "nationaltheatret"))
    :types '("rail" "metro")
