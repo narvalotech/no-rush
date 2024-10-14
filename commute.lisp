@@ -156,7 +156,7 @@
     (assert (eql :estimated-calls (car calls)))
     (cdr calls)))
 
-(defun get-departures (nsr-id &key (max 100) (seconds (* 2 60 60)))
+(defun get-departures (nsr-id &key (max 200) (seconds (* 2 60 60)))
   "Convenience wrapper around GQL-DEPARTURES and SEND-QUERY"
   (extract-estimated-calls
    (send-query
