@@ -409,8 +409,15 @@
  ; => (:STATION-NAME ("nationaltheatret") :TYPES ("rail" "metro") :DESTINATIONS
  ; ("oslo s" "vestli" "skøyen"))
 
+;; TODO: fix encoding to UTF-8
 (defun get-station (&key station-name types destinations lines)
-  (format nil "Got station: ~A types [~A] dests [~A] lines [~A]" station-name types destinations lines))
+  (format t "Fetching: ~A types [~A] dests [~A] lines [~A]~%" station-name types destinations lines)
+  (print-departures nil
+   (filter-departures
+    (get-departures (find-stop (car station-name)))
+    :types types
+    :destinations destinations
+    :lines lines)))
 
 (defun handle-departures (env)
   (list
