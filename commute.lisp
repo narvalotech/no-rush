@@ -84,7 +84,7 @@
             (sexp->gql sx output)
             (format output " }"))))
 
-(format t "~A" (make-gql test))
+(format nil "~A" (make-gql test))
 ; query { stopPlace(id: "NSR:StopPlace:59651") { name id estimatedCalls { expectedDepartureTime actualDepartureTime destinationDisplay { frontText } serviceJourney { line { publicCode transportMode } } } } } => NIL
 
 (defun package-gql (gql-str)
@@ -123,7 +123,7 @@
                            :connection-timeout 2
                            :content data)))))
 
-(send-query (make-gql-json (gql-departures "NSR:StopPlace:58404" :max 50)))
+;; (send-query (make-gql-json (gql-departures "NSR:StopPlace:58404" :max 50)))
 ; Send query: {"query":"query { stopPlace(id: \"NSR:StopPlace:59651\") { name id estimatedCalls { expectedDepartureTime actualDepartureTime destinationDisplay { frontText } serviceJourney { line { publicCode transportMode } } } } }"}
 ;  => ((:DATA
 ;   (:STOP-PLACE (:NAME . "Skøyen stasjon") (:ID . "NSR:StopPlace:59651")
@@ -278,13 +278,13 @@
  ; => "08:29 [metro] line 5 to Vestli"
 
 ;; blommenholm
-(filter-by-type '("rail") (get-departures "NSR:StopPlace:58843"))
+;; (filter-by-type '("rail") (get-departures "NSR:StopPlace:58843"))
 
 ;; nationaltheatret
-(defparameter *test-national* (get-departures "NSR:StopPlace:58404"))
+;; (defparameter *test-national* (get-departures "NSR:StopPlace:58404"))
 
-(filter-by-type '("metro") *test-national*)
-(filter-by-line '("5") *test-national*)
+;; (filter-by-type '("metro") *test-national*)
+;; (filter-by-line '("5") *test-national*)
 
 ;; TODO: refactor the FILTER-xx fns. They are very similar.
 (defun filter-departures (departures
@@ -299,12 +299,12 @@
               (format (if stream stream s) "~A~%" (format-departure d)))
             departures)))
 
-(print-departures t
- (filter-departures
-  *test-national*
-  :types '("rail" "metro")
-  :destinations '("vestli" "asker" "spikkestad")
-  :lines '("5" "L1")))
+;; (print-departures t
+;;  (filter-departures
+;;   *test-national*
+;;   :types '("rail" "metro")
+;;   :destinations '("vestli" "asker" "spikkestad")
+;;   :lines '("5" "L1")))
 ; 22:29 [rail] line L1 to Asker
 ; 22:29 [metro] line 5 to Vestli
 ; 22:43 [rail] line L1 to Spikkestad
@@ -328,9 +328,9 @@
                                              (cons "lang" "en"))
                            :connection-timeout 2)))))
 
-(defparameter *test-g-oslo-s* (send-geocoder-query "oslo s"))
-(defparameter *test-g-skoyen* (send-geocoder-query "skoyen stasjon"))
-(defparameter *test-g-national* (send-geocoder-query "nationaltheatret stasjon"))
+;; (defparameter *test-g-oslo-s* (send-geocoder-query "oslo s"))
+;; (defparameter *test-g-skoyen* (send-geocoder-query "skoyen stasjon"))
+;; (defparameter *test-g-national* (send-geocoder-query "nationaltheatret stasjon"))
 
 (defun g-get-props (query-response)
   "Extracts stop properties from a geocoder API response. Always picks the first entry."
@@ -347,7 +347,7 @@
        :name name
        :types category))))
 
-(g-props->plist (g-get-props *test-g-skoyen*))
+;; (g-props->plist (g-get-props *test-g-skoyen*))
  ; => (:ID "NSR:StopPlace:59651" :NAME "Skøyen stasjon" :TYPES
  ; ("railStation" "onstreetBus" "onstreetBus" "onstreetBus"))
 
@@ -356,31 +356,31 @@
   "Query API and return the first result's stop-place ID"
   (getf (g-props->plist (g-get-props (send-geocoder-query text))) :id))
 
-(find-stop "skoyen")
+;; (find-stop "skoyen")
 ; Send geocoder query: skoyen
 ;  => "NSR:StopPlace:58223"
 
-(time (find-stop "skoyen stasjon"))
+;; (time (find-stop "skoyen stasjon"))
 ; Send geocoder query: skoyen stasjon
 ;  => "NSR:StopPlace:59651"
 
 ;; .6s 237kB alloc
-(time (find-stop "nationaltheatret"))
+;; (time (find-stop "nationaltheatret"))
 ; Send geocoder query: nationaltheatret
 ;  => "NSR:StopPlace:58404"
 
 ;; .6s 1.5MB alloc
-(time (get-departures "NSR:StopPlace:58404"))
+;; (time (get-departures "NSR:StopPlace:58404"))
 
 ;; ~1s for two API calls. Not that bad.
 ;; There's almost 2MB of allocations when API calls are fired. That's concerning.
-(time
- (print-departures t
-  (filter-departures
-   (get-departures (find-stop "nationaltheatret"))
-   :types '("rail" "metro")
-   :destinations '("vestli" "asker" "spikkestad")
-   :lines '("5" "L1"))))
+;; (time
+;;  (print-departures t
+;;   (filter-departures
+;;    (get-departures (find-stop "nationaltheatret"))
+;;    :types '("rail" "metro")
+;;    :destinations '("vestli" "asker" "spikkestad")
+;;    :lines '("5" "L1"))))
 ; Send geocoder query: nationaltheatret
 ; Send query: {"query":"query { stopPlace(id: \"NSR:StopPlace:58404\") { name id estimatedCalls(numberOfDepartures: 100, timeRange: 7200) { expectedDepartureTime destinationDisplay { frontText } serviceJourney { line { publicCode transportMode } } } } }"}
 ; 09:29 [rail] L1 Asker
