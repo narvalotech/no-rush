@@ -409,10 +409,10 @@
  ; => (:STATION-NAME ("nationaltheatret") :TYPES ("rail" "metro") :DESTINATIONS
  ; ("oslo s" "vestli" "skøyen"))
 
-;; TODO: fix encoding to UTF-8
 (defun get-station (&key station-name types destinations lines)
   (format t "Fetching: ~A types [~A] dests [~A] lines [~A]~%" station-name types destinations lines)
-  (print-departures nil
+  (print-departures
+   nil
    (filter-departures
     (get-departures (find-stop (car station-name)))
     :types types
@@ -420,17 +420,108 @@
     :lines lines)))
 
 (defun handle-departures (env)
-  (list
-   (apply #'get-station (decode-url-params (getf env :query-string)))))
+  (list 200 '(:content-type "text/plain; charset=utf-8")
+        (list (apply #'get-station (decode-url-params (getf env :query-string))))))
+
+(defun handle-error ()
+  (list 400 '(:content-type "text/plain; charset=utf-8")
+        '("[400] doesn't seem like anything to me..")))
+
+(defvar *handler* (clack:clackup 'response :address "0.0.0.0" :port 80))
+
+(defvar *blommenholm-stop* (find-stop "blommenholm stasjon"))
+(defvar *nationaltheatret-stop* (find-stop "nationaltheatret"))
+(defvar *hasle-stop* (find-stop "hasle"))
+
+(defun favorites ()
+  (let ((blommenholm (get-departures *blommenholm-stop*)))
+    (with-output-to-string (s)
+      (format s "~%---- Blommenholm -> work ----~%")
+      (print-departures
+       s (filter-departures
+          blommenholm
+          :destinations '("lillestrøm" "oslo s")))
+
+      (format s "~%---- Blommenholm -> sandvika ----~%")
+      (print-departures
+       s (filter-departures
+          blommenholm
+          :destinations '("asker" "spikkestad")))
+
+      (format s "~%---- Nationaltheatret ----~%")
+      (print-departures
+       s (filter-departures
+          (get-departures *nationaltheatret-stop*)
+          :types '("metro" "rail")
+          :destinations '("vestli" "asker" "spikkestad")
+          :lines '("5" "L1")))
+
+      (format s "~%---- Hasle ----~%")
+      (print-departures
+       s (filter-departures
+          (get-departures *hasle-stop*)
+          :types '("metro")
+          :lines '("5")
+          :destinations '("ringen via tøyen"))))))
+; Send query: {"query":"query { stopPlace(id: \"NSR:StopPlace:58843\") { name id estimatedCalls(numberOfDepartures: 200, timeRange: 7200) { expectedDepartureTime destinationDisplay { frontText } serviceJourney { line { publicCode transportMode } } } } }"}
+; Send query: {"query":"query { stopPlace(id: \"NSR:StopPlace:58404\") { name id estimatedCalls(numberOfDepartures: 200, timeRange: 7200) { expectedDepartureTime destinationDisplay { frontText } serviceJourney { line { publicCode transportMode } } } } }"}
+; Send query: {"query":"query { stopPlace(id: \"NSR:StopPlace:58191\") { name id estimatedCalls(numberOfDepartures: 200, timeRange: 7200) { expectedDepartureTime destinationDisplay { frontText } serviceJourney { line { publicCode transportMode } } } } }"}
+;  => "
+; ---- Blommenholm -> work ----
+; 18:21 [rail] line L1 to Lillestrøm
+; 18:34 [rail] line L1 to Lillestrøm
+; 18:51 [rail] line L1 to Lillestrøm
+; 19:04 [rail] line L1 to Lillestrøm
+; 19:21 [rail] line L1 to Lillestrøm
+; 19:34 [rail] line L1 to Lillestrøm
+; 19:51 [rail] line L1 to Lillestrøm
+; 20:04 [rail] line L1 to Lillestrøm
+
+; ---- Blommenholm -> sandvika ----
+; 18:14 [rail] line L1 to Asker
+; 18:28 [rail] line L1 to Spikkestad
+; 18:44 [rail] line L1 to Asker
+; 18:58 [rail] line L1 to Spikkestad
+; 19:14 [rail] line L1 to Asker
+; 19:28 [rail] line L1 to Spikkestad
+; 19:44 [rail] line L1 to Asker
+; 19:58 [rail] line L1 to Spikkestad
+
+; ---- Nationaltheatret ----
+; 18:13 [rail] line L1 to Spikkestad
+; 18:14 [metro] line 5 to Vestli
+; 18:29 [rail] line L1 to Asker
+; 18:30 [metro] line 5 to Vestli
+; 18:43 [rail] line L1 to Spikkestad
+; 18:45 [metro] line 5 to Vestli
+; 18:59 [rail] line L1 to Asker
+; 18:59 [metro] line 5 to Vestli
+
+; ---- Hasle ----
+; 18:17 [metro] line 5 to Ringen via Tøyen
+; 18:31 [metro] line 5 to Ringen via Tøyen
+; 18:46 [metro] line 5 to Ringen via Tøyen
+; 19:01 [metro] line 5 to Ringen via Tøyen
+; 19:16 [metro] line 5 to Ringen via Tøyen
+; 19:31 [metro] line 5 to Ringen via Tøyen
+; 19:46 [metro] line 5 to Ringen via Tøyen
+; 20:01 [metro] line 5 to Ringen via Tøyen
+; "
+
+(defun handle-favorites ()
+  (list 200 '(:content-type "text/plain; charset=utf-8")
+        (list (favorites))))
 
 (defun response (env)
   (format t "query-string: ~A~%" (getf env :query-string))
   ;; (break)
 
-  (if (and (eql :get (getf env :request-method))
-           (equalp "/departures" (getf env :path-info)))
-      (list 200 '(:content-type "text/plain") (handle-departures env))
-      (list 400 '() '("doesn't seem like anything to me.. (err 400)"))))
+  (if (not (eql :get (getf env :request-method)))
+      (handle-error)
 
-(defvar *handler* (clack:clackup 'response :address "0.0.0.0" :port 9003))
-;; (clack:stop *handler*)
+      ;; Handle GET requests
+      (cond ((equalp "/departures" (getf env :path-info))
+             (handle-departures env))
+            ((equalp "/favorites" (getf env :path-info))
+             (handle-favorites))
+            (t (handle-error)))))
