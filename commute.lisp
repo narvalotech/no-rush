@@ -429,9 +429,40 @@
 
 (defvar *handler* (clack:clackup 'response :address "0.0.0.0" :port 80))
 
+(defvar *solvikveien-stop* (find-stop "solvikveien"))
 (defvar *blommenholm-stop* (find-stop "blommenholm stasjon"))
 (defvar *nationaltheatret-stop* (find-stop "nationaltheatret"))
 (defvar *hasle-stop* (find-stop "hasle"))
+
+(defun micka ()
+  (let ((blommenholm (get-departures *blommenholm-stop*))
+        (solvikveien (get-departures *solvikveien-stop*)))
+    (with-output-to-string (s)
+      (format s "~%---- To Sandvika ----~%")
+      (print-departures
+       s (filter-departures
+          blommenholm
+          :destinations '("asker" "spikkestad")))
+
+      (format s "~%")
+      (print-departures
+       s (filter-departures
+          solvikveien
+          :destinations '("rykkinn")))
+
+      (format s "~%---- To Oslo ----~%")
+      (print-departures
+       s (filter-departures
+          blommenholm
+          :destinations '("lillestrøm" "oslo s")))
+
+      (format s "~%")
+      (print-departures
+       s (filter-departures
+          solvikveien
+          :destinations '("nationaltheatret")))
+
+      )))
 
 (defun favorites ()
   (let ((blommenholm (get-departures *blommenholm-stop*)))
@@ -468,6 +499,10 @@
   (list 200 '(:content-type "text/plain; charset=utf-8")
         (list (favorites))))
 
+(defun handle-micka ()
+  (list 200 '(:content-type "text/plain; charset=utf-8")
+        (list (micka))))
+
 (defun response (env)
   (format t "query-string: ~A~%" (getf env :query-string))
   ;; (break)
@@ -478,6 +513,8 @@
       ;; Handle GET requests
       (cond ((equalp "/departures" (getf env :path-info))
              (handle-departures env))
+            ((equalp "/micka" (getf env :path-info))
+             (handle-micka))
             ((equalp "/favorites" (getf env :path-info))
              (handle-favorites))
             (t (handle-error)))))
