@@ -40,12 +40,6 @@
                                              (("line" ()
                                                       (("publicCode")
                                                        ("transportMode")))))))
-        ;; Seems we have to fetch those per-quay, not per-station
-        ;; ("situations" ()
-        ;;               (("id")
-        ;;                ("description" ()
-        ;;                               (("value")
-        ;;                                ("language")))))
         )))))
 
 (defparameter test (gql-departures "NSR:StopPlace:59651"))
