@@ -426,6 +426,7 @@
 (defvar *solvikveien-stop* (find-stop "solvikveien"))
 (defvar *blommenholm-stop* (find-stop "blommenholm stasjon"))
 (defvar *nationaltheatret-stop* (find-stop "nationaltheatret"))
+(defvar *jern-stop* (find-stop "jernbanetorget"))
 (defvar *hasle-stop* (find-stop "hasle"))
 
 (defun micka ()
@@ -481,13 +482,21 @@
           :destinations '("vestli" "asker" "spikkestad")
           :lines '("5" "L1")))
 
+      (format s "~%---- Jernbanetorget ----~%")
+      (print-departures
+       s (filter-departures
+          (get-departures *jern-stop*)
+          :types '("metro")
+          :destinations '("vestli")
+          :lines '("5")))
+
       (format s "~%---- Hasle ----~%")
       (print-departures
        s (filter-departures
           (get-departures *hasle-stop*)
           :types '("metro")
           :lines '("5")
-          :destinations '("ringen via tøyen"))))))
+          :destinations '("ringen via tøyen" "stortinget"))))))
 
 (defun handle-favorites ()
   (list 200 '(:content-type "text/plain; charset=utf-8")
